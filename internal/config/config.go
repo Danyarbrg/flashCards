@@ -12,7 +12,7 @@ type AppConfig struct {
 	DBPath string
 }
 
-func Init() AppConfig {
+func InitEnv() AppConfig {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Cant find file .env.")
