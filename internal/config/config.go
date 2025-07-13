@@ -13,7 +13,7 @@ type AppConfig struct {
 }
 
 func Init() AppConfig {
-	err := godotenv.Load("../.env")
+	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Cant find file .env.")
 	}
