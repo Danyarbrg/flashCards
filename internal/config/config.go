@@ -12,16 +12,21 @@ type AppConfig struct {
 	DBPath string
 }
 
-var Cfg AppConfig
-
-func Init() {
+func Init() AppConfig {
 	err := godotenv.Load("../.env")
 	if err != nil {
 		log.Fatal("Cant find file .env.")
 	}
 
-	Cfg = AppConfig{
-		Port:	os.Getenv("PORT"),
-		DBPath:	os.Getenv("DATABASE_URL"),
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	dbURL := os.Getenv("DATABASE_URL")
+
+	return AppConfig{
+		Port:		port,
+		DBPath: 	dbURL,
 	}
 }
