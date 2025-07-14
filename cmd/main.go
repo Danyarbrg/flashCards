@@ -6,6 +6,7 @@ import (
 	"github.com/Danyarbrg/flashCards/internal/api"
 	"github.com/Danyarbrg/flashCards/internal/config"
 	"github.com/Danyarbrg/flashCards/internal/db"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -15,6 +16,17 @@ func main() {
 	}
 
 	router := api.SetupRouter()
+	// Обслуживание статических файлов из папки public
+	router.Static("/public", "./public")
+	// Перенаправление корневого пути на index.html
+	router.GET("/", func(c *gin.Context) {
+		c.File("./public/index.html")
+	})
+	// Обслуживание review.html
+	router.GET("/review", func(c *gin.Context) {
+		c.File("./public/review.html")
+	})
+
 	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

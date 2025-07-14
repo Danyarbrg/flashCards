@@ -1,51 +1,48 @@
 package models
 
 import (
-	"log"
-	"time"
-	"strings"
-	"errors"
 	"fmt"
+	"log"
+	"strings"
+	"time"
 
 	"github.com/Danyarbrg/flashCards/internal/db"
 )
 
+const timeFormat = "2006-01-02T15:04:05Z" // Формат ISO 8601
 
 type Flashcard struct {
-	ID			int			`json:"id"`
-	UserID		int			`json:"user_id"`
-	Word	 	string		`json:"word"`
-	Meaning		string		`json:"meaning"`
-	Example		string		`json:"example"`
-	NextReview  time.Time   `json:"next_review"`
-    Interval    int     	`json:"interval"`
-    Repetitions int     	`json:"repetitions"`
-    EF			float64		`json:"ef"`
+	ID          int       `json:"id"`
+	UserID      int       `json:"user_id"`
+	Word        string    `json:"word"`
+	Meaning     string    `json:"meaning"`
+	Example     string    `json:"example"`
+	NextReview  time.Time `json:"next_review"`
+	Interval    int       `json:"interval"`
+	Repetitions int       `json:"repetitions"`
+	EF          float64   `json:"ef"`
 }
 
-const timeFormat = "2006-01-02 15:04:05"
-
-// Flashcard save card into DB.
 func (f *Flashcard) Save() error {
-    if f.Word == "" || f.Meaning == "" {
-        return errors.New("word and meaning are required")
-    }
+	if f.Word == "" || f.Meaning == "" {
+		return fmt.Errorf("word and meaning are required")
+	}
 	if f.UserID == 0 {
 		return fmt.Errorf("user_id is required")
 	}
-    if f.Interval == 0 {
-        f.Interval = 1
-    }
-    if f.EF == 0 {
-        f.EF = 2.5
-    }
+	if f.Interval == 0 {
+		f.Interval = 1
+	}
+	if f.EF == 0 {
+		f.EF = 2.5
+	}
 
-    now := time.Now().UTC()
+	now := time.Now().UTC()
 	query := `
 	INSERT INTO flashcards (user_id, word, meaning, example, next_review, interval, repetitions, ef) 
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
-    result, err := db.DB.Exec(query, f.UserID, f.Word, f.Meaning, f.Example, now.Format(timeFormat), f.Interval, f.Repetitions, f.EF)
+	result, err := db.DB.Exec(query, f.UserID, f.Word, f.Meaning, f.Example, now.Format(timeFormat), f.Interval, f.Repetitions, f.EF)
 	if err != nil {
 		log.Printf("Failed to save flashcard: %v", err)
 		return fmt.Errorf("failed to save flashcard: %w", err)
@@ -169,32 +166,32 @@ func GetByID(id, userID int) (Flashcard, error) {
 }
 
 func GetDueFlashcards(userID int) ([]Flashcard, error) {
-	now := time.Now().UTC()
-	query := `SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef 
-			FROM flashcards 
-			WHERE user_id = ? AND next_review <= ?`
-	rows, err := db.DB.Query(query, userID, now.Format(timeFormat))
-	if err != nil {
-		return nil, fmt.Errorf("failed to query due flashcards: %w", err)
-	}
-	defer rows.Close()
+    now := time.Now().UTC().Truncate(24 * time.Hour).AddDate(0, 0, 1)
+    query := `SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef 
+            FROM flashcards 
+            WHERE user_id = ? AND next_review < ?`
+    rows, err := db.DB.Query(query, userID, now.Format(timeFormat))
+    if err != nil {
+        return nil, fmt.Errorf("failed to query due flashcards: %w", err)
+    }
+    defer rows.Close()
 
-	var cards []Flashcard
-	for rows.Next() {
-		var f Flashcard
-		var nextReviewStr string
-		if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF); err != nil {
-			log.Printf("Error scanning flashcard: %v", err)
-			return nil, fmt.Errorf("failed to scan flashcard: %w", err)
-		}
-		f.NextReview, err = time.Parse(timeFormat, nextReviewStr)
-		if err != nil {
-			log.Printf("Error parsing next_review: %v", err)
-			return nil, fmt.Errorf("failed to parse next_review: %w", err)
-		}
-		cards = append(cards, f)
-	}
-	return cards, nil
+    var cards []Flashcard
+    for rows.Next() {
+        var f Flashcard
+        var nextReviewStr string
+        if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF); err != nil {
+            log.Printf("Error scanning flashcard: %v", err)
+            return nil, fmt.Errorf("failed to scan flashcard: %w", err)
+        }
+        f.NextReview, err = time.Parse(timeFormat, nextReviewStr)
+        if err != nil {
+            log.Printf("Error parsing next_review: %v", err)
+            return nil, fmt.Errorf("failed to parse next_review: %w", err)
+        }
+        cards = append(cards, f)
+    }
+    return cards, nil
 }
 
 func UpdateAfterReview(id, userID, quality int) error {
@@ -232,7 +229,16 @@ func UpdateAfterReview(id, userID, quality int) error {
 		card.Interval = 1
 	}
 
-	nextReview := time.Now().UTC().AddDate(0, 0, card.Interval)
+	// Устанавливаем next_review на начало следующего дня для quality < 3
+	var nextReview time.Time
+	if quality < 3 {
+		// Устанавливаем на начало следующего дня (00:00:00 UTC)
+		nextReview = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, 1)
+	} else {
+		// Устанавливаем на текущую дату + интервал дней
+		nextReview = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, card.Interval)
+	}
+
 	query := `UPDATE flashcards SET repetitions = ?, interval = ?, ef = ?, next_review = ? 
 			WHERE id = ? AND user_id = ?`
 	_, err = db.DB.Exec(query, card.Repetitions, card.Interval, ef, nextReview.Format(timeFormat), id, userID)

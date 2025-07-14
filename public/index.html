@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcards</title>
+    <link rel="stylesheet" href="/public/styles.css">
+</head>
+<body>
+    <div id="auth-section">
+        <h2>Login</h2>
+        <form id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        <h2>Register</h2>
+        <form id="register-form">
+            <input type="email" id="register-email" placeholder="Email" required>
+            <input type="password" id="register-password" placeholder="Password" required>
+            <button type="submit">Register</button>
+        </form>
+    </div>
+
+    <div id="flashcards-section" style="display: none;">
+        <h2>Flashcards</h2>
+        <a href="/review">Go to Review Page</a>
+        <button onclick="logout()">Logout</button>
+        <h3>Add Flashcard</h3>
+        <form id="add-flashcard-form">
+            <input type="text" id="word" placeholder="Word" required>
+            <input type="text" id="meaning" placeholder="Meaning" required>
+            <input type="text" id="example" placeholder="Example">
+            <button type="submit">Add Flashcard</button>
+        </form>
+
+        <h3>Your Flashcards</h3>
+        <table id="flashcards-table">
+            <thead>
+                <tr>
+                    <th>Word</th>
+                    <th>Meaning</th>
+                    <th>Example</th>
+                    <th>Next Review</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h3>Due Flashcards</h3>
+        <p id="no-due-message" style="display: none;">No flashcards due for review. Try again tomorrow or add new cards!</p>
+        <div id="due-flashcards"></div>
+    </div>
+
+    <script defer src="/public/app.js"></script>
+</body>
+</html>
