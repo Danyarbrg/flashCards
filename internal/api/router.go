@@ -29,6 +29,9 @@ func getFlashcards(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
     limitStr := c.DefaultQuery("limit", "20")
 
+	sortBy := c.DefaultQuery("sort", "created")
+	order := c.DefaultQuery("order", "asc")
+
 	page, err := strconv.Atoi(pageStr)
     if err != nil || page < 1 {
         page = 1
@@ -39,7 +42,14 @@ func getFlashcards(c *gin.Context) {
         limit = 20
     }
 
-	cards, err := models.GetAll()
+	asc := true
+	if order == "desc" {
+		asc = false
+	}
+
+	offset := (page - 1) * limit
+
+	cards, err := models.GetSortedPaginated(limit, offset, sortBy, asc)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "DB read error."})
 		return

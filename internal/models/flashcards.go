@@ -190,3 +190,46 @@ func UpdateAfterReview(id int, quality int) error {
     }
     return err
 }
+
+// GetSortedPaginated realizes sorting and filtration.
+func GetSortedPaginated(limit, offset int, sortBy string, asc bool) ([]Flashcard, error) {
+	validSortFields := map[string]string{
+		"created":     "id",
+		"repetitions": "repetitions",
+		"ef":          "ef",
+		"next_review": "next_review",
+	}
+
+	orderBy, ok := validSortFields[sortBy]
+	if !ok {
+		orderBy = "id"
+	}
+
+	orderDir := "ASC"
+	if !asc {
+		orderDir = "DESC"
+	}
+
+	query := `
+	SELECT id, word, meaning, example, next_review, interval, repetitions, ef
+	FROM flashcards
+	ORDER BY ` + orderBy + ` ` + orderDir + `
+	LIMIT ? OFFSET ?`
+
+	rows, err := db.DB.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cards []Flashcard
+	for rows.Next() {
+		var f Flashcard
+		if err := rows.Scan(&f.ID, &f.Word, &f.Meaning, &f.Example, &f.NextReview, &f.Interval, &f.Repetitions, &f.EF); err != nil {
+			log.Println("Error scanning flashcard:", err)
+			continue
+		}
+		cards = append(cards, f)
+	}
+	return cards, nil
+}
