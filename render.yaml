@@ -2,6 +2,7 @@ services:
   - type: web
     name: flashcards-app
     env: go
+    rootDir: cmd
     plan: free
     buildCommand: go build -o app .
     startCommand: ./app
