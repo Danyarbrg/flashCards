@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Danyarbrg/flashCards/internal/models"
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ func SetupRouter() *gin.Engine {
 
 	r.GET("/cards", getFlashcards)
 	r.POST("/cards", createFlashcard)
+	r.DELETE("/cards", deleteFlashcard)
 
 	return r
 }
@@ -44,4 +46,24 @@ func createFlashcard (c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, card)
+}
+
+// DeleteFlash delete card.
+func deleteFlashcard(c *gin.Context) {
+	idStr := c.Param("id")
+	
+	// Convert string into int.
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect ID."})
+		return
+	}
+
+	// Trying to delete card
+	if err := models.Delete(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Delete error."})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Card has been deleted."})
 }

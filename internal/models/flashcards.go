@@ -46,3 +46,10 @@ func GetAll() ([]Flashcard, error) {
 	}
 	return cards, nil
 }
+
+// Delete card from DB.
+func Delete(id int) error {
+	query := `DELETE FROM slahcards WHERE id = ?`
+	_, err := db.DB.Exec(query, id)
+	return err
+}
