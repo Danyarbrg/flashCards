@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: flashcards-app
+    env: go
+    plan: free
+    buildCommand: go build -o app .
+    startCommand: ./app
+    envVars:
+      - key: JWT_SECRET
+        value: supersecretkey
+      - key: DB_PATH
+        value: flashcards.db
