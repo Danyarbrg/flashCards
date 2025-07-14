@@ -8,8 +8,9 @@ import (
 )
 
 type AppConfig struct {
-	Port   string
-	DBPath string
+	Port		string
+	DBPath		string
+	JWTSecret	string
 }
 
 func InitEnv() AppConfig {
@@ -24,9 +25,18 @@ func InitEnv() AppConfig {
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "flashcards.db"
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET is required.")
+	}
 
 	return AppConfig{
 		Port:		port,
 		DBPath: 	dbURL,
+		JWTSecret: jwtSecret,
 	}
 }

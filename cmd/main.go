@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"fmt"
 
 	"github.com/Danyarbrg/flashCards/internal/api"
 	"github.com/Danyarbrg/flashCards/internal/config"
@@ -11,12 +10,11 @@ import (
 
 func main() {
 	cfg := config.InitEnv()
-	fmt.Println(cfg.DBPath,"\n", cfg.Port)
-
-	db.InitDB(cfg.DBPath)
+	if err := db.InitDB(cfg.DBPath); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
 	router := api.SetupRouter()
-
 	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
