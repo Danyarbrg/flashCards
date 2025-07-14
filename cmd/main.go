@@ -17,19 +17,18 @@ func main() {
 
 	router := api.SetupRouter()
 	// Обслуживание статических файлов из папки public
-	router.Static("/public", "./public")
-	
-	// Обслуживание HTML файлов
+	router.Static("/public", "../public")
+
 	router.GET("/", func(c *gin.Context) {
-		c.File("./public/index.html")
+		c.File("../public/index.html")
 	})
-	
+
 	router.GET("/cards.html", func(c *gin.Context) {
-		c.File("./public/cards.html")
+		c.File("../public/cards.html")
 	})
 
 	router.GET("/review", func(c *gin.Context) {
-		c.File("./public/review.html")
+		c.File("../public/review.html")
 	})
 
 	if err := router.Run(":" + cfg.Port); err != nil {
