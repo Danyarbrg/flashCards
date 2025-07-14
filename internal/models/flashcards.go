@@ -3,6 +3,7 @@ package models
 import (
 	"log"
 	"time"
+	"strings"
 
 	"github.com/Danyarbrg/flashCards/internal/db"
 )
@@ -232,4 +233,18 @@ func GetSortedPaginated(limit, offset int, sortBy string, asc bool) ([]Flashcard
 		cards = append(cards, f)
 	}
 	return cards, nil
+}
+
+// ExistsByWord проверяет, есть ли слово в базе (без учёта регистра).
+func ExistsByWord(word string) (bool, error) {
+    lowerWord := strings.ToLower(word)
+    query := `SELECT COUNT(*) FROM flashcards WHERE LOWER(word) = ?`
+
+    var count int
+    err := db.DB.QueryRow(query, lowerWord).Scan(&count)
+    if err != nil {
+        return false, err
+    }
+
+    return count > 0, nil
 }

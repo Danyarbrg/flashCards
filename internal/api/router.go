@@ -67,6 +67,17 @@ func createFlashcard (c *gin.Context) {
 		return
 	}
 
+	// Check if word already exists
+	exists, err := models.ExistsByWord(card.Word)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "DB check error."})
+		return
+	}
+	if exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "Word already exists."})
+		return
+	}
+
 	// Saving into DB.
 	if err := card.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Saving error."})
