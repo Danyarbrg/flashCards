@@ -17,6 +17,9 @@ func SetupRouter() *gin.Engine {
 	r.DELETE("/cards/:id", deleteFlashcard)
 	r.PUT("/cards/:id", updateFlashcard)
 	r.GET("/cards/:id", getFlashcardByID)
+	r.GET("/cards/due", getDueFlashcards)
+	r.POST("/cards/:id/review", reviewFlashcard)
+
 
 	return r
 }
@@ -102,6 +105,7 @@ func updateFlashcard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Card updated."})
 }
 
+// GetFlashcardByID getting card by ID.
 func getFlashcardByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -117,4 +121,40 @@ func getFlashcardByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, card)
+}
+
+// GetDueFlashcards returns cards for todays repeating.
+func getDueFlashcards(c *gin.Context) {
+    cards, err := models.GetDueFlashcards()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "DB read error."})
+        return
+    }
+    c.JSON(http.StatusOK, cards)
+}
+
+// reviewFlashcard checks for successful repetition.
+func reviewFlashcard(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := strconv.Atoi(idStr)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect ID."})
+        return
+    }
+
+    var input struct {
+        Success bool `json:"success"`
+    }
+
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON."})
+        return
+    }
+
+    if err := models.UpdateAfterReview(id, input.Success); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Update after review error."})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Card review updated."})
 }

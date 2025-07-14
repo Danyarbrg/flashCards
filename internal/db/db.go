@@ -2,10 +2,9 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3" // Регистрирует драйвер SQLite
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var DB *sql.DB
@@ -29,12 +28,15 @@ func InitDB(dbPath string) {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		word TEXT NOT NULL,
 		meaning TEXT NOT NULL,
-		example TEXT
+		example TEXT,
+		next_review DATETIME DEFAULT CURRENT_TIMESTAMP,
+		interval INTEGER DEFAULT 1,
+		repetitions INTEGER DEFAULT 0
 	);`
 
 	if _, err = DB.Exec(createTable); err != nil {
 		log.Fatalf("Creating table error: %v", err)
 	}
 
-	fmt.Println("DB connected and ready.")
+	log.Println("DB connected and ready.")
 } 
