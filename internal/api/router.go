@@ -7,32 +7,41 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var flashcards []models.Flashcard
-var idCounter int = 1
-
+// SetupRouter launches gin engine.
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	// Get all the cards.
-	r.GET("/cards", func(c *gin.Context){
-		c.JSON(http.StatusOK, flashcards)
-	})
-
-	// Input the new card.
-	r.POST("/cards", func(c *gin.Context){
-		var newCard models.Flashcard
-
-		if err := c.ShouldBindJSON(&newCard); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		newCard.ID = idCounter
-		idCounter++
-
-		flashcards = append(flashcards, newCard)
-		c.JSON(http.StatusCreated, newCard)
-	})
+	r.GET("/cards", getFlashcards)
+	r.POST("/cards", createFlashcard)
 
 	return r
+}
+
+// getFlashcards outputs all cards from DB.
+func getFlashcards(c *gin.Context) {
+	cards, err := models.GetAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "DB read error."})
+		return
+	}
+	c.JSON(http.StatusOK, cards)
+}
+
+// createFlashcard processes POST, creating flashcard.
+func createFlashcard (c *gin.Context) {
+	var card models.Flashcard
+
+	// Parsing JSON request into stuct.
+	if err := c.ShouldBindJSON(&card); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect JSON."})
+		return
+	}
+
+	// Saving into DB.
+	if err := card.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Saving error."})
+		return
+	}
+
+	c.JSON(http.StatusOK, card)
 }
