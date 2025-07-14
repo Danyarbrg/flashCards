@@ -18,11 +18,16 @@ func main() {
 	router := api.SetupRouter()
 	// Обслуживание статических файлов из папки public
 	router.Static("/public", "./public")
-	// Перенаправление корневого пути на index.html
+	
+	// Обслуживание HTML файлов
 	router.GET("/", func(c *gin.Context) {
 		c.File("./public/index.html")
 	})
-	// Обслуживание review.html
+	
+	router.GET("/cards.html", func(c *gin.Context) {
+		c.File("./public/cards.html")
+	})
+
 	router.GET("/review", func(c *gin.Context) {
 		c.File("./public/review.html")
 	})

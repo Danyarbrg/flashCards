@@ -1,36 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review Flashcards</title>
+    <title>Повторение</title>
     <link rel="stylesheet" href="/public/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="review-section">
-        <h2>Review Flashcards</h2>
-        <a href="/">Back to Home</a>
-        <button onclick="logout()">Logout</button>
-        <h3>Sort Flashcards</h3>
-        <form id="sort-form">
-            <label for="sort-by">Sort by:</label>
-            <select id="sort-by">
-                <option value="word">Word</option>
-                <option value="next_review">Next Review</option>
-                <option value="repetitions">Repetitions</option>
-                <option value="ef">Easiness Factor</option>
-            </select>
-            <label for="sort-order">Order:</label>
-            <select id="sort-order">
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-            </select>
-            <button type="submit">Apply Sort</button>
-        </form>
-        <h3>Due Flashcards</h3>
-        <p id="no-due-message" style="display: none;">No flashcards due for review. Try again tomorrow or add new cards!</p>
-        <div id="due-flashcards"></div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/cards.html" class="nav-logo">FlashCards</a>
+            <div>
+                <a href="/cards.html" class="nav-item">Все карточки</a>
+                <a href="#" onclick="logout()" class="nav-item">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="review-container">
+            <div id="flashcard-container" class="hidden">
+                <div class="flashcard">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <p id="card-word-review"></p>
+                        </div>
+                        <div class="flashcard-back">
+                            <p id="card-meaning-review"></p>
+                            <em id="card-example-review"></em>
+                        </div>
+                    </div>
+                </div>
+                <div id="quality-buttons">
+                    <p>Оцените, насколько хорошо вы знаете это слово:</p>
+                    <button class="quality-btn" data-quality="2">Плохо</button>
+                    <button class="quality-btn" data-quality="3">Нормально</button>
+                    <button class="quality-btn" data-quality="4">Хорошо</button>
+                    <button class="quality-btn" data-quality="5">Отлично</button>
+                </div>
+            </div>
+            <div id="no-cards-message">
+                <h2>Карточек для повторения на сегодня нет! 🎉</h2>
+                <p>Вы можете <a href="/cards.html">добавить новые карточки</a> или зайти позже.</p>
+            </div>
+        </div>
     </div>
-    <script defer src="/public/review.js"></script>
+
+    <script src="/public/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('token')) {
+                window.location.href = '/';
+            } else {
+                loadDueCards();
+            }
+        });
+    </script>
 </body>
 </html>
