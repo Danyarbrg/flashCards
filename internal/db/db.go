@@ -12,19 +12,17 @@ var DB *sql.DB
 func InitDB(dbPath string) error {
 	var err error
 
-	// Connection to DB.
 	if DB, err = sql.Open("sqlite3", dbPath); err != nil {
 		log.Fatalf("DB connection error: %v", err)
 		return err
 	}
 
-	// DB ping.
 	if err = DB.Ping(); err != nil {
 		log.Fatalf("DB ping error: %v", err)
 		return err
 	}
 
-	// Creating users table.
+	// Creating users table
 	createUsersTable := `
 	CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +34,7 @@ func InitDB(dbPath string) error {
 		return err
 	}
 
-	// Creating table flashcards with users_id
+	// Creating flashcards table with new columns
 	createFlashcardsTable := `
 	CREATE TABLE IF NOT EXISTS flashcards (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,17 +42,26 @@ func InitDB(dbPath string) error {
 		word TEXT NOT NULL,
 		meaning TEXT NOT NULL,
 		example TEXT,
+		tags TEXT DEFAULT '',
 		next_review DATETIME DEFAULT CURRENT_TIMESTAMP,
 		interval INTEGER DEFAULT 1,
 		repetitions INTEGER DEFAULT 0,
 		ef REAL DEFAULT 2.5,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Новое поле для даты создания
 		FOREIGN KEY (user_id) REFERENCES users(id)
-	);
+	);`
+	if _, err = DB.Exec(createFlashcardsTable); err != nil {
+		log.Fatalf("Creating flashcards table error: %v", err)
+		return err
+	}
+	
+	// Creating indexes.
+	createIndexes := `
 	CREATE INDEX IF NOT EXISTS idx_user_id ON flashcards(user_id);
 	CREATE INDEX IF NOT EXISTS idx_next_review ON flashcards(next_review);
 	`
-	if _, err = DB.Exec(createFlashcardsTable); err != nil {
-		log.Fatalf("Creating flashcards table error: %v", err)
+	if _, err = DB.Exec(createIndexes); err != nil {
+		log.Fatalf("Creating indexes error: %v", err)
 		return err
 	}
 

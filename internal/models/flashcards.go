@@ -9,7 +9,7 @@ import (
 	"github.com/Danyarbrg/flashCards/internal/db"
 )
 
-const timeFormat = "2006-01-02T15:04:05Z" // Формат ISO 8601
+const timeFormat = "2006-01-02T15:04:05Z"
 
 type Flashcard struct {
 	ID          int       `json:"id"`
@@ -17,10 +17,12 @@ type Flashcard struct {
 	Word        string    `json:"word"`
 	Meaning     string    `json:"meaning"`
 	Example     string    `json:"example"`
+	Tags        string    `json:"tags"`
 	NextReview  time.Time `json:"next_review"`
 	Interval    int       `json:"interval"`
 	Repetitions int       `json:"repetitions"`
 	EF          float64   `json:"ef"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (f *Flashcard) Save() error {
@@ -30,144 +32,105 @@ func (f *Flashcard) Save() error {
 	if f.UserID == 0 {
 		return fmt.Errorf("user_id is required")
 	}
-	if f.Interval == 0 {
-		f.Interval = 1
-	}
-	if f.EF == 0 {
-		f.EF = 2.5
-	}
 
 	now := time.Now().UTC()
 	query := `
-	INSERT INTO flashcards (user_id, word, meaning, example, next_review, interval, repetitions, ef) 
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	INSERT INTO flashcards (user_id, word, meaning, example, tags, next_review, interval, repetitions, ef, created_at) 
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	result, err := db.DB.Exec(query, f.UserID, f.Word, f.Meaning, f.Example, now.Format(timeFormat), f.Interval, f.Repetitions, f.EF)
+	result, err := db.DB.Exec(query, f.UserID, f.Word, f.Meaning, f.Example, f.Tags, now.Format(timeFormat), 1, 0, 2.5, now.Format(timeFormat))
 	if err != nil {
-		log.Printf("Failed to save flashcard: %v", err)
 		return fmt.Errorf("failed to save flashcard: %w", err)
 	}
 
 	lastID, err := result.LastInsertId()
 	if err != nil {
-		log.Printf("Failed to get last insert ID: %v", err)
 		return fmt.Errorf("failed to get last insert ID: %w", err)
 	}
+
 	f.ID = int(lastID)
 	f.NextReview = now
-
+	f.CreatedAt = now
 	return nil
 }
 
-func GetAll(userID int) ([]Flashcard, error) {
-	query := `SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef 
-			FROM flashcards 
-			WHERE user_id = ?`
-	rows, err := db.DB.Query(query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query flashcards: %w", err)
-	}
-	defer rows.Close()
-
-	var cards []Flashcard
-	for rows.Next() {
-		var f Flashcard
-		var nextReviewStr string
-		if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF); err != nil {
-			log.Printf("Error scanning flashcard: %v", err)
-			return nil, fmt.Errorf("failed to scan flashcard: %w", err)
-		}
-		f.NextReview, err = time.Parse(timeFormat, nextReviewStr)
-		if err != nil {
-			log.Printf("Error parsing next_review: %v", err)
-			return nil, fmt.Errorf("failed to parse next_review: %w", err)
-		}
-		cards = append(cards, f)
-	}
-	return cards, nil
-}
-
-func GetPaginated(userID, limit, offset int) ([]Flashcard, error) {
-	query := `SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef 
-			FROM flashcards 
-			WHERE user_id = ?
-			ORDER BY id 
-			LIMIT ? OFFSET ?`
-
-	rows, err := db.DB.Query(query, userID, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query flashcards: %w", err)
-	}
-	defer rows.Close()
-
-	var cards []Flashcard
-	for rows.Next() {
-		var f Flashcard
-		var nextReviewStr string
-		if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF); err != nil {
-			log.Printf("Error scanning flashcard: %v", err)
-			return nil, fmt.Errorf("failed to scan flashcard: %w", err)
-		}
-		f.NextReview, err = time.Parse(timeFormat, nextReviewStr)
-		if err != nil {
-			log.Printf("Error parsing next_review: %v", err)
-			return nil, fmt.Errorf("failed to parse next_review: %w", err)
-		}
-		cards = append(cards, f)
-	}
-	return cards, nil
-}
-
-func GetTotalCount(userID int) (int, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM flashcards WHERE user_id = ?`
-	err := db.DB.QueryRow(query, userID).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total count: %w", err)
-	}
-	return count, nil
-}
-
-func Delete(id, userID int) error {
-	query := `DELETE FROM flashcards WHERE id = ? AND user_id = ?`
-	_, err := db.DB.Exec(query, id, userID)
-	if err != nil {
-		return fmt.Errorf("failed to delete flashcard: %w", err)
-	}
-	return nil
-}
-
-func Update(id, userID int, word, meaning, example string) error {
-	query := `UPDATE flashcards SET word = ?, meaning = ?, example = ? WHERE id = ? AND user_id = ?`
-	_, err := db.DB.Exec(query, word, meaning, example, id, userID)
+func Update(id, userID int, word, meaning, example, tags string) error {
+	query := `UPDATE flashcards SET word = ?, meaning = ?, example = ?, tags = ? WHERE id = ? AND user_id = ?`
+	_, err := db.DB.Exec(query, word, meaning, example, tags, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update flashcard: %w", err)
 	}
 	return nil
 }
 
+func GetSortedPaginated(userID, limit, offset int, sortBy, order, tagFilter string) ([]Flashcard, error) {
+	validSortFields := map[string]string{
+		"created":     "created_at",
+		"repetitions": "repetitions",
+		"ef":          "ef",
+		"next_review": "next_review",
+	}
+	orderBy, ok := validSortFields[sortBy]
+	if !ok {
+		orderBy = "created_at"
+	}
+	orderDir := "ASC"
+	if strings.ToLower(order) == "desc" {
+		orderDir = "DESC"
+	}
+
+	baseQuery := `SELECT id, user_id, word, meaning, example, tags, next_review, interval, repetitions, ef, created_at FROM flashcards WHERE user_id = ?`
+	args := []interface{}{userID}
+
+	if tagFilter != "" {
+		baseQuery += " AND LOWER(tags) LIKE ?"
+		args = append(args, "%"+strings.ToLower(tagFilter)+"%")
+	}
+
+	fullQuery := fmt.Sprintf("%s ORDER BY %s %s LIMIT ? OFFSET ?", baseQuery, orderBy, orderDir)
+	args = append(args, limit, offset)
+
+	rows, err := db.DB.Query(fullQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query sorted flashcards: %w", err)
+	}
+	defer rows.Close()
+
+	var cards []Flashcard
+	for rows.Next() {
+		var f Flashcard
+		var nextReviewStr, createdAtStr string
+		if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &f.Tags, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF, &createdAtStr); err != nil {
+			log.Printf("Error scanning flashcard: %v", err)
+			return nil, fmt.Errorf("failed to scan flashcard: %w", err)
+		}
+		f.NextReview, _ = time.Parse(timeFormat, nextReviewStr)
+		f.CreatedAt, _ = time.Parse(timeFormat, createdAtStr)
+		cards = append(cards, f)
+	}
+	return cards, nil
+}
+
 func GetByID(id, userID int) (Flashcard, error) {
-	query := `SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef 
+	query := `SELECT id, user_id, word, meaning, example, tags, next_review, interval, repetitions, ef, created_at 
 			FROM flashcards 
 			WHERE id = ? AND user_id = ?`
 	row := db.DB.QueryRow(query, id, userID)
 
 	var card Flashcard
-	var nextReviewStr string
-	err := row.Scan(&card.ID, &card.UserID, &card.Word, &card.Meaning, &card.Example, &nextReviewStr, &card.Interval, &card.Repetitions, &card.EF)
+	var nextReviewStr, createdAtStr string
+	err := row.Scan(&card.ID, &card.UserID, &card.Word, &card.Meaning, &card.Example, &card.Tags, &nextReviewStr, &card.Interval, &card.Repetitions, &card.EF, &createdAtStr)
 	if err != nil {
 		return card, fmt.Errorf("failed to get flashcard: %w", err)
 	}
-	card.NextReview, err = time.Parse(timeFormat, nextReviewStr)
-	if err != nil {
-		return card, fmt.Errorf("failed to parse next_review: %w", err)
-	}
+	card.NextReview, _ = time.Parse(timeFormat, nextReviewStr)
+	card.CreatedAt, _ = time.Parse(timeFormat, createdAtStr)
 	return card, nil
 }
 
 func GetDueFlashcards(userID int) ([]Flashcard, error) {
     now := time.Now().UTC().Truncate(24 * time.Hour).AddDate(0, 0, 1)
-    query := `SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef 
+    query := `SELECT id, user_id, word, meaning, example, tags, next_review, interval, repetitions, ef, created_at 
             FROM flashcards 
             WHERE user_id = ? AND next_review < ?`
     rows, err := db.DB.Query(query, userID, now.Format(timeFormat))
@@ -179,134 +142,95 @@ func GetDueFlashcards(userID int) ([]Flashcard, error) {
     var cards []Flashcard
     for rows.Next() {
         var f Flashcard
-        var nextReviewStr string
-        if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF); err != nil {
+        var nextReviewStr, createdAtStr string
+        if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &f.Tags, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF, &createdAtStr); err != nil {
             log.Printf("Error scanning flashcard: %v", err)
             return nil, fmt.Errorf("failed to scan flashcard: %w", err)
         }
-        f.NextReview, err = time.Parse(timeFormat, nextReviewStr)
-        if err != nil {
-            log.Printf("Error parsing next_review: %v", err)
-            return nil, fmt.Errorf("failed to parse next_review: %w", err)
-        }
+        f.NextReview, _ = time.Parse(timeFormat, nextReviewStr)
+        f.CreatedAt, _ = time.Parse(timeFormat, createdAtStr)
         cards = append(cards, f)
     }
     return cards, nil
 }
 
 func UpdateAfterReview(id, userID, quality int) error {
-	if quality < 0 {
-		quality = 0
-	} else if quality > 5 {
-		quality = 5
-	}
-
 	card, err := GetByID(id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get flashcard: %w", err)
 	}
 
-	ef := card.EF
-	if ef == 0 {
-		ef = 2.5
-	}
-
-	if quality >= 3 {
+	if quality < 3 {
+		card.Repetitions = 0
+		card.Interval = 1
+	} else {
 		if card.Repetitions == 0 {
 			card.Interval = 1
 		} else if card.Repetitions == 1 {
 			card.Interval = 6
 		} else {
-			card.Interval = int(float64(card.Interval) * ef)
+			card.Interval = int(float64(card.Interval) * card.EF)
 		}
 		card.Repetitions++
-		ef = ef + (0.1 - float64(5-quality)*(0.08+float64(5-quality)*0.02))
-		if ef < 1.3 {
-			ef = 1.3
+		card.EF += (0.1 - float64(5-quality)*(0.08+float64(5-quality)*0.02))
+		if card.EF < 1.3 {
+			card.EF = 1.3
 		}
-	} else {
-		card.Repetitions = 0
-		card.Interval = 1
 	}
 
-	// Устанавливаем next_review на начало следующего дня для quality < 3
-	var nextReview time.Time
-	if quality < 3 {
-		// Устанавливаем на начало следующего дня (00:00:00 UTC)
-		nextReview = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, 1)
-	} else {
-		// Устанавливаем на текущую дату + интервал дней
-		nextReview = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, card.Interval)
-	}
+	nextReview := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, card.Interval)
 
 	query := `UPDATE flashcards SET repetitions = ?, interval = ?, ef = ?, next_review = ? 
 			WHERE id = ? AND user_id = ?`
-	_, err = db.DB.Exec(query, card.Repetitions, card.Interval, ef, nextReview.Format(timeFormat), id, userID)
+	_, err = db.DB.Exec(query, card.Repetitions, card.Interval, card.EF, nextReview.Format(timeFormat), id, userID)
 	if err != nil {
-		log.Printf("UpdateAfterReview error: %v", err)
 		return fmt.Errorf("failed to update flashcard: %w", err)
 	}
 	return nil
 }
 
-func GetSortedPaginated(userID, limit, offset int, sortBy string, asc bool) ([]Flashcard, error) {
-	validSortFields := map[string]string{
-		"created":     "id",
-		"repetitions": "repetitions",
-		"ef":          "ef",
-		"next_review": "next_review",
-	}
-
-	orderBy, ok := validSortFields[sortBy]
-	if !ok {
-		orderBy = "id"
-	}
-
-	orderDir := "ASC"
-	if !asc {
-		orderDir = "DESC"
-	}
-
-	query := fmt.Sprintf(`
-	SELECT id, user_id, word, meaning, example, next_review, interval, repetitions, ef
-	FROM flashcards
-	WHERE user_id = ?
-	ORDER BY %s %s
-	LIMIT ? OFFSET ?`, orderBy, orderDir)
-
-	rows, err := db.DB.Query(query, userID, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query flashcards: %w", err)
-	}
-	defer rows.Close()
-
-	var cards []Flashcard
-	for rows.Next() {
-		var f Flashcard
-		var nextReviewStr string
-		if err := rows.Scan(&f.ID, &f.UserID, &f.Word, &f.Meaning, &f.Example, &nextReviewStr, &f.Interval, &f.Repetitions, &f.EF); err != nil {
-			log.Printf("Error scanning flashcard: %v", err)
-			return nil, fmt.Errorf("failed to scan flashcard: %w", err)
-		}
-		f.NextReview, err = time.Parse(timeFormat, nextReviewStr)
-		if err != nil {
-			log.Printf("Error parsing next_review: %v", err)
-			return nil, fmt.Errorf("failed to parse next_review: %w", err)
-		}
-		cards = append(cards, f)
-	}
-	return cards, nil
+func Delete(id, userID int) error {
+	query := `DELETE FROM flashcards WHERE id = ? AND user_id = ?`
+	_, err := db.DB.Exec(query, id, userID)
+	return err
 }
 
 func ExistsByWord(userID int, word string) (bool, error) {
-	lowerWord := strings.ToLower(word)
-	query := `SELECT COUNT(*) FROM flashcards WHERE user_id = ? AND LOWER(word) = ?`
-
 	var count int
-	err := db.DB.QueryRow(query, userID, lowerWord).Scan(&count)
+	query := `SELECT COUNT(*) FROM flashcards WHERE user_id = ? AND LOWER(word) = ?`
+	err := db.DB.QueryRow(query, userID, strings.ToLower(word)).Scan(&count)
+	return count > 0, err
+}
+
+func GetAllTags(userID int) ([]string, error) {
+	query := `SELECT tags FROM flashcards WHERE user_id = ? AND tags != ''`
+	rows, err := db.DB.Query(query, userID)
 	if err != nil {
-		return false, fmt.Errorf("failed to check word existence: %w", err)
+		return nil, fmt.Errorf("failed to query tags: %w", err)
+	}
+	defer rows.Close()
+
+	uniqueTags := make(map[string]bool)
+
+	for rows.Next() {
+		var tagsStr string
+		if err := rows.Scan(&tagsStr); err != nil {
+			return nil, fmt.Errorf("failed to scan tags: %w", err)
+		}
+
+		tags := strings.Split(tagsStr, ",")
+		for _, tag := range tags {
+			trimmedTag := strings.TrimSpace(tag)
+			if trimmedTag != "" {
+				uniqueTags[trimmedTag] = true
+			}
+		}
 	}
 
-	return count > 0, nil
+	var result []string
+	for tag := range uniqueTags {
+		result = append(result, tag)
+	}
+
+	return result, nil
 }

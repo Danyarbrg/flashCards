@@ -28,6 +28,7 @@ func SetupRouter() *gin.Engine {
 		protected.GET("/:id", getFlashcardByID)
 		protected.GET("/due", getDueFlashcards)
 		protected.POST("/review/:id", reviewFlashcard)
+		protected.GET("/tags", getAllUserTags)
 	}
 
 	return r
@@ -42,7 +43,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Удаляем префикс "Bearer "
 		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 			tokenString = tokenString[7:]
 		}
@@ -142,21 +142,19 @@ func getFlashcards(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	sortBy := c.DefaultQuery("sort", "created")
 	order := c.DefaultQuery("order", "asc")
+	tag := c.DefaultQuery("tag", "")
 
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
 		page = 1
 	}
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 {
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
 		limit = 20
 	}
-
-	asc := order != "desc"
 	offset := (page - 1) * limit
 
-	cards, err := models.GetSortedPaginated(userID.(int), limit, offset, sortBy, asc)
+	cards, err := models.GetSortedPaginated(userID.(int), limit, offset, sortBy, order, tag)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read flashcards: %v", err)})
 		return
@@ -218,8 +216,7 @@ func deleteFlashcard(c *gin.Context) {
 
 func updateFlashcard(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
@@ -229,6 +226,7 @@ func updateFlashcard(c *gin.Context) {
 		Word    string `json:"word"`
 		Meaning string `json:"meaning"`
 		Example string `json:"example"`
+		Tags    string `json:"tags"` 
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -241,7 +239,7 @@ func updateFlashcard(c *gin.Context) {
 		return
 	}
 
-	if err := models.Update(id, userID.(int), input.Word, input.Meaning, input.Example); err != nil {
+	if err := models.Update(id, userID.(int), input.Word, input.Meaning, input.Example, input.Tags); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update flashcard: %v", err)})
 		return
 	}
@@ -279,8 +277,7 @@ func getDueFlashcards(c *gin.Context) {
 
 func reviewFlashcard(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
@@ -306,4 +303,21 @@ func reviewFlashcard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Flashcard review updated"})
+}
+
+func getAllUserTags(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	tags, err := models.GetAllTags(userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get tags: %v", err)})
+		return
+	}
+
+	if tags == nil {
+		c.JSON(http.StatusOK, []string{})
+		return
+	}
+
+	c.JSON(http.StatusOK, tags)
 }

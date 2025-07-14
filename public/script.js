@@ -1,6 +1,11 @@
-const API_URL = ''; // Так как фронт и бэк на одном домене, можно оставить пустым
+const API_URL = 'http://localhost:8080';; 
 
-// --- Вспомогательные функции ---
+let dueCards = [];
+let currentCardIndex = 0;
+let currentSortBy = 'created';
+let currentSortOrder = 'asc';
+let allUserTags = [];
+
 async function apiRequest(endpoint, method, body = null) {
     const headers = {
         'Content-Type': 'application/json',
@@ -29,8 +34,8 @@ async function apiRequest(endpoint, method, body = null) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Что-то пошло не так');
         }
-        if (response.status === 204 || response.headers.get('Content-Length') === '0') {
-             return null;
+        if (response.status === 204 || response.headers.get("Content-Length") === "0") {
+            return null;
         }
         return await response.json();
     } catch (error) {
@@ -44,14 +49,9 @@ function logout() {
     window.location.href = '/';
 }
 
-
-// --- Логика для страницы входа (index.html) ---
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-
 function toggleForms() {
-    loginForm.classList.toggle('hidden');
-    registerForm.classList.toggle('hidden');
+    document.getElementById('login-form').classList.toggle('hidden');
+    document.getElementById('register-form').classList.toggle('hidden');
 }
 
 async function login(event) {
@@ -62,9 +62,7 @@ async function login(event) {
         const data = await apiRequest('/login', 'POST', { email, password });
         localStorage.setItem('token', data.token);
         window.location.href = '/cards.html';
-    } catch (error) {
-        // Ошибка уже показана в apiRequest
-    }
+    } catch (error) {}
 }
 
 async function register(event) {
@@ -77,20 +75,17 @@ async function register(event) {
         toggleForms();
         document.getElementById('login-email').value = email;
         document.getElementById('login-password').focus();
-    } catch (error) {
-       // Ошибка уже показана в apiRequest
-    }
+    } catch (error) {}
 }
 
-// --- Логика для страницы карточек (cards.html) ---
-if (window.location.pathname.endsWith('cards.html')) {
+function initializeCardsPage() {
     const modal = document.getElementById('card-modal');
     const addCardBtn = document.getElementById('add-card-btn');
     const closeBtn = document.querySelector('.close-btn');
     const cardForm = document.getElementById('card-form');
     const modalTitle = document.getElementById('modal-title');
     const cardIdInput = document.getElementById('card-id');
-    
+
     addCardBtn.onclick = () => {
         modalTitle.innerText = "Новая карточка";
         cardForm.reset();
@@ -100,18 +95,17 @@ if (window.location.pathname.endsWith('cards.html')) {
     
     closeBtn.onclick = () => modal.classList.add('hidden');
     window.onclick = (event) => {
-        if (event.target == modal) {
-            modal.classList.add('hidden');
-        }
+        if (event.target == modal) modal.classList.add('hidden');
     }
-    
-    cardForm.onsubmit = async (event) => {
+
+        cardForm.onsubmit = async (event) => {
         event.preventDefault();
         const id = cardIdInput.value;
         const cardData = {
             word: document.getElementById('card-word').value,
             meaning: document.getElementById('card-meaning').value,
             example: document.getElementById('card-example').value,
+            tags: document.getElementById('card-tags').value,
         };
 
         try {
@@ -122,27 +116,71 @@ if (window.location.pathname.endsWith('cards.html')) {
             }
             modal.classList.add('hidden');
             loadCards();
-        } catch (error) {
-             // Ошибка уже показана в apiRequest
-        }
+            loadUserTags();
+        } catch (error) {}
     };
+
+    document.getElementById('sort-by').addEventListener('change', (e) => {
+        currentSortBy = e.target.value;
+        loadCards();
+    });
+    document.getElementById('sort-order').addEventListener('change', (e) => {
+        currentSortOrder = e.target.value;
+        loadCards();
+    });
+
+    const tagFilterInput = document.getElementById('tag-filter');
+    const clearFilterBtn = document.getElementById('clear-filter-btn');
+
+    tagFilterInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            loadCards();
+        }
+    });
+
+    clearFilterBtn.addEventListener('click', () => {
+        tagFilterInput.value = '';
+        loadCards();
+    });
+
+    loadCards();
+    loadUserTags();
 }
 
 
 async function loadCards() {
     try {
-        const cards = await apiRequest('/cards', 'GET');
+        const tagFilter = document.getElementById('tag-filter').value;
+        // Формируем URL с учетом фильтра
+        let endpoint = `/cards?sort=${currentSortBy}&order=${currentSortOrder}`;
+        if (tagFilter) {
+            endpoint += `&tag=${encodeURIComponent(tagFilter)}`;
+        }
+
+        const cards = await apiRequest(endpoint, 'GET');
         const container = document.getElementById('cards-container');
         container.innerHTML = '';
         if (cards && cards.length > 0) {
             cards.forEach(card => {
                 const cardElement = document.createElement('div');
                 cardElement.className = 'card';
+
+                // Создаем контейнер для тегов
+                let tagsHTML = '';
+                if (card.tags) {
+                    const tagsArray = card.tags.split(',').map(tag => tag.trim());
+                    tagsHTML = `<div class="tags-container">
+                        ${tagsArray.map(tag => `<span class="tag-item">${tag}</span>`).join('')}
+                    </div>`;
+                }
+                
                 cardElement.innerHTML = `
                     <div>
                         <h3>${card.word}</h3>
                         <p>${card.meaning}</p>
                         ${card.example ? `<em>${card.example}</em>` : ''}
+                        ${tagsHTML} 
                     </div>
                     <div class="card-actions">
                         <button class="edit-btn" onclick="editCard(${card.id})">Изменить</button>
@@ -154,9 +192,7 @@ async function loadCards() {
         } else {
             container.innerHTML = '<p>У вас пока нет карточек. Добавьте первую!</p>';
         }
-    } catch (error) {
-       // Ошибка уже показана в apiRequest
-    }
+    } catch (error) {}
 }
 
 async function editCard(id) {
@@ -167,9 +203,23 @@ async function editCard(id) {
         document.getElementById('card-word').value = card.word;
         document.getElementById('card-meaning').value = card.meaning;
         document.getElementById('card-example').value = card.example;
+        document.getElementById('card-tags').value = card.tags;
         document.getElementById('card-modal').classList.remove('hidden');
+    } catch (error) {}
+}
+
+async function loadUserTags() {
+    try {
+        allUserTags = await apiRequest('/cards/tags', 'GET') || [];
+        const datalist = document.getElementById('tag-suggestions');
+        datalist.innerHTML = '';
+        allUserTags.forEach(tag => {
+            const option = document.createElement('option');
+            option.value = tag;
+            datalist.appendChild(option);
+        });
     } catch (error) {
-       // Ошибка уже показана в apiRequest
+        console.error("Failed to load user tags:", error);
     }
 }
 
@@ -178,25 +228,18 @@ async function deleteCard(id) {
         try {
             await apiRequest(`/cards/${id}`, 'DELETE');
             loadCards();
-        } catch (error) {
-            // Ошибка уже показана в apiRequest
-        }
+        } catch (error) {}
     }
 }
 
-
-// --- Логика для страницы повторения (review.html) ---
-if (window.location.pathname.endsWith('review.html')) {
-    let dueCards = [];
-    let currentCardIndex = 0;
-
-    const flashcardContainer = document.getElementById('flashcard-container');
-    const noCardsMessage = document.getElementById('no-cards-message');
+function initializeReviewPage() {
     const flashcard = document.querySelector('.flashcard');
     
-    flashcard.addEventListener('click', () => {
-        flashcard.classList.toggle('flipped');
-    });
+    if (flashcard) {
+        flashcard.addEventListener('click', () => {
+            flashcard.classList.toggle('flipped');
+        });
+    }
     
     document.querySelectorAll('.quality-btn').forEach(button => {
         button.addEventListener('click', async () => {
@@ -206,43 +249,40 @@ if (window.location.pathname.endsWith('review.html')) {
                 await apiRequest(`/cards/review/${cardId}`, 'POST', { quality });
                 currentCardIndex++;
                 displayCurrentCard();
-            } catch (error) {
-                 // Ошибка уже показана в apiRequest
-            }
+            } catch (error) {}
         });
     });
+    
+    loadDueCards();
 }
 
 async function loadDueCards() {
     try {
-        const reviewContainer = document.getElementById('review-container');
         dueCards = await apiRequest('/cards/due', 'GET');
         currentCardIndex = 0;
-        
-        if (dueCards && dueCards.length > 0) {
-            document.getElementById('flashcard-container').classList.remove('hidden');
-            document.getElementById('no-cards-message').classList.add('hidden');
-            displayCurrentCard();
-        } else {
-            document.getElementById('flashcard-container').classList.add('hidden');
-            document.getElementById('no-cards-message').classList.remove('hidden');
-        }
-    } catch (error) {
-        // Ошибка уже показана в apiRequest
-    }
+        displayCurrentCard();
+    } catch (error) {}
 }
 
 function displayCurrentCard() {
+    const flashcardContainer = document.getElementById('flashcard-container');
+    const noCardsMessage = document.getElementById('no-cards-message');
     const flashcard = document.querySelector('.flashcard');
-    
-    if (currentCardIndex < dueCards.length) {
+
+    if (dueCards && currentCardIndex < dueCards.length) {
+        flashcardContainer.classList.remove('hidden');
+        noCardsMessage.classList.add('hidden');
+        
         const card = dueCards[currentCardIndex];
         document.getElementById('card-word-review').innerText = card.word;
         document.getElementById('card-meaning-review').innerText = card.meaning;
         document.getElementById('card-example-review').innerText = card.example || '';
-        flashcard.classList.remove('flipped');
+        
+        if (flashcard.classList.contains('flipped')) {
+            flashcard.classList.remove('flipped');
+        }
     } else {
-        document.getElementById('flashcard-container').classList.add('hidden');
-        document.getElementById('no-cards-message').classList.remove('hidden');
+        flashcardContainer.classList.add('hidden');
+        noCardsMessage.classList.remove('hidden');
     }
 }

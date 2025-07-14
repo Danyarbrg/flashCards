@@ -32,12 +32,13 @@
                         </div>
                     </div>
                 </div>
-                <div id="quality-buttons">
-                    <p>Оцените, насколько хорошо вы знаете это слово:</p>
-                    <button class="quality-btn" data-quality="2">Плохо</button>
+                 <div id="quality-buttons">
+                    <p>Насколько хорошо вы знаете это слово?</p>
+                    <button class="quality-btn" data-quality="0">Снова</button>
+                    <button class="quality-btn" data-quality="2">Трудно</button>
                     <button class="quality-btn" data-quality="3">Нормально</button>
                     <button class="quality-btn" data-quality="4">Хорошо</button>
-                    <button class="quality-btn" data-quality="5">Отлично</button>
+                    <button class="quality-btn" data-quality="5">Легко</button>
                 </div>
             </div>
             <div id="no-cards-message">
@@ -53,7 +54,7 @@
             if (!localStorage.getItem('token')) {
                 window.location.href = '/';
             } else {
-                loadDueCards();
+                initializeReviewPage();
             }
         });
     </script>

@@ -7,19 +7,42 @@
     <link rel="stylesheet" href="/public/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
+
+</head>
 <body>
     <nav class="navbar">
-        <div class="nav-container">
-            <a href="/cards.html" class="nav-logo">FlashCards</a>
-            <div>
-                <a href="/review" class="nav-item">Повторение</a>
-                <a href="#" onclick="logout()" class="nav-item">Выйти</a>
-            </div>
+    <div class="nav-container">
+        <a href="/cards.html" class="nav-logo">FlashCards</a>
+        <div>
+            <a href="/review" class="nav-item">Повторение</a>
+            <a href="#" onclick="logout()" class="nav-item">Выйти</a>
         </div>
+    </div>
     </nav>
 
     <div class="container">
         <button id="add-card-btn">Добавить новую карточку</button>
+
+        <div class="controls-container">
+            <div class="sort-container">
+                <label for="sort-by">Сортировать по:</label>
+                <select id="sort-by">
+                    <option value="created">Дате создания</option>
+                    <option value="repetitions">Повторениям</option>
+                    <option value="ef">Фактору EF</option>
+                    <option value="next_review">Дате след. повтора</option>
+                </select>
+                <select id="sort-order">
+                    <option value="desc">По убыванию</option>
+                    <option value="asc">По возрастанию</option>
+                </select>
+            </div>
+            <div class="filter-container">
+                <input type="text" id="tag-filter" placeholder="Фильтр по тегу...">
+                <button id="clear-filter-btn">Сбросить</button>
+            </div>
+        </div>
+
         <div id="cards-container"></div>
     </div>
 
@@ -32,18 +55,23 @@
                 <input type="text" id="card-word" placeholder="Слово или фраза" required>
                 <input type="text" id="card-meaning" placeholder="Значение" required>
                 <textarea id="card-example" placeholder="Пример использования"></textarea>
+    
+                <input type="text" id="card-tags" placeholder="Теги (через запятую)" list="tag-suggestions">
+    
+                <datalist id="tag-suggestions"></datalist>
+
                 <button type="submit">Сохранить</button>
             </form>
         </div>
     </div>
-
+    
     <script src="/public/script.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (!localStorage.getItem('token')) {
                 window.location.href = '/';
             } else {
-                loadCards();
+                initializeCardsPage();
             }
         });
     </script>
