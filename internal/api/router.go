@@ -14,7 +14,9 @@ func SetupRouter() *gin.Engine {
 
 	r.GET("/cards", getFlashcards)
 	r.POST("/cards", createFlashcard)
-	r.DELETE("/cards", deleteFlashcard)
+	r.DELETE("/cards/:id", deleteFlashcard)
+	r.PUT("/cards/:id", updateFlashcard)
+	r.GET("/cards/:id", getFlashcardByID)
 
 	return r
 }
@@ -66,4 +68,53 @@ func deleteFlashcard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Card has been deleted."})
+}
+
+// UpdateFlashcard updates flashcard.
+func updateFlashcard(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect ID."})
+		return
+	}
+
+	// Structure for reading request body.
+	var input struct {
+		Word    string `json:"word"`
+		Meaning string `json:"meaning"`
+		Example string `json:"example"`
+	}
+
+
+	// Reading request body JSON.
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect JSON format."})
+		return
+	}
+
+	// Update data into DB.
+	if err := models.Update(id, input.Word, input.Meaning, input.Example); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Update card error."})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Card updated."})
+}
+
+func getFlashcardByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect ID"})
+		return
+	}
+
+	card, err := models.GetByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Card can't be find."})
+		return
+	}
+
+	c.JSON(http.StatusOK, card)
 }

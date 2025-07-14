@@ -49,7 +49,22 @@ func GetAll() ([]Flashcard, error) {
 
 // Delete card from DB.
 func Delete(id int) error {
-	query := `DELETE FROM slahcards WHERE id = ?`
+	query := `DELETE FROM flashcards WHERE id = ?`
 	_, err := db.DB.Exec(query, id)
 	return err
+}
+
+// Update updates word and translation of the card with specified id.
+func Update(id int, word, meaning, example string) error {
+	query := `UPDATE flashcards SET word = ?, meaning = ?, example = ? WHERE id = ?`
+	_, err := db.DB.Exec(query, word, meaning, example, id)
+	return err
+}
+
+func GetByID(id int) (Flashcard, error) {
+	row := db.DB.QueryRow("SELECT id, word, meaning, example FROM flashcards WHERE id = ?", id)
+
+	var card Flashcard
+	err := row.Scan(&card.ID, &card.Word, &card.Meaning, &card.Example)
+	return card, err
 }
