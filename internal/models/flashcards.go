@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 	"strings"
+	"errors"
+	"fmt"
 
 	"github.com/Danyarbrg/flashCards/internal/db"
 )
@@ -20,8 +22,13 @@ type Flashcard struct {
     EF			float64		`json:"ef"`
 }
 
+const timeFormat = "2006-01-02 15:04:05"
+
 // Flashcard save card into DB.
 func (f *Flashcard) Save() error {
+    if f.Word == "" || f.Meaning == "" {
+        return errors.New("word and meaning are required")
+    }
     if f.Interval == 0 {
         f.Interval = 1
     }
@@ -29,23 +36,24 @@ func (f *Flashcard) Save() error {
         f.EF = 2.5
     }
 
-    now := time.Now().Format("2006-01-02 15:04:05")
-
+    now := time.Now().UTC()
     query := `
     INSERT INTO flashcards (word, meaning, example, next_review, interval, repetitions, ef) 
     VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-    result, err := db.DB.Exec(query, f.Word, f.Meaning, f.Example, now, f.Interval, f.Repetitions, f.EF)
+    result, err := db.DB.Exec(query, f.Word, f.Meaning, f.Example, now.Format(timeFormat), f.Interval, f.Repetitions, f.EF)
     if err != nil {
-        log.Printf("Save error: %v", err)
-        return err
+        log.Printf("Failed to save flashcard: %v", err)
+        return fmt.Errorf("failed to save flashcard: %w", err)
     }
 
     lastID, err := result.LastInsertId()
-    if err == nil {
-        f.ID = int(lastID)
+    if err != nil {
+        log.Printf("Failed to get last insert ID: %v", err)
+        return fmt.Errorf("failed to get last insert ID: %w", err)
     }
-    f.NextReview, _ = time.Parse("2006-01-02 15:04:05", now)
+    f.ID = int(lastID)
+    f.NextReview = now
 
     return nil
 }

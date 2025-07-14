@@ -58,33 +58,26 @@ func getFlashcards(c *gin.Context) {
 }
 
 // createFlashcard processes POST, creating flashcard.
-func createFlashcard (c *gin.Context) {
-	var card models.Flashcard
-
-	// Parsing JSON request into stuct.
-	if err := c.ShouldBindJSON(&card); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect JSON."})
-		return
-	}
-
-	// Check if word already exists
-	exists, err := models.ExistsByWord(card.Word)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "DB check error."})
-		return
-	}
-	if exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "Word already exists."})
-		return
-	}
-
-	// Saving into DB.
-	if err := card.Save(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Saving error."})
-		return
-	}
-
-	c.JSON(http.StatusOK, card)
+func createFlashcard(c *gin.Context) {
+    var card models.Flashcard
+    if err := c.ShouldBindJSON(&card); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect JSON."})
+        return
+    }
+    exists, err := models.ExistsByWord(card.Word)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "DB check error."})
+        return
+    }
+    if exists {
+        c.JSON(http.StatusConflict, gin.H{"error": "Word already exists."})
+        return
+    }
+    if err := card.Save(); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Saving error."})
+        return
+    }
+    c.JSON(http.StatusOK, card)
 }
 
 // DeleteFlash delete card.
