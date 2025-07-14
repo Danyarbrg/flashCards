@@ -18,7 +18,7 @@ func SetupRouter() *gin.Engine {
 	r.PUT("/cards/:id", updateFlashcard)
 	r.GET("/cards/:id", getFlashcardByID)
 	r.GET("/cards/due", getDueFlashcards)
-	r.POST("/cards/:id/review", reviewFlashcard)
+	r.POST("/cards/review/:id", reviewFlashcard)
 
 
 	return r
@@ -133,28 +133,33 @@ func getDueFlashcards(c *gin.Context) {
     c.JSON(http.StatusOK, cards)
 }
 
-// reviewFlashcard checks for successful repetition.
+// ReviewFlashcard checks for successful repetition.
 func reviewFlashcard(c *gin.Context) {
-    idStr := c.Param("id")
-    id, err := strconv.Atoi(idStr)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect ID."})
-        return
-    }
+idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect ID."})
+		return
+	}
 
-    var input struct {
-        Success bool `json:"success"`
-    }
+	var input struct {
+		Quality int `json:"quality"` // from 0 (complete blackout) to 5 (perfect recall)
+	}
 
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON."})
-        return
-    }
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON."})
+		return
+	}
 
-    if err := models.UpdateAfterReview(id, input.Success); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Update after review error."})
-        return
-    }
+	if input.Quality < 0 || input.Quality > 5 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Quality must be between 0 and 5."})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Card review updated."})
+	if err := models.UpdateAfterReview(id, input.Quality); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Update after review error."})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Card review updated."})
 }

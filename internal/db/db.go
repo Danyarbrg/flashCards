@@ -31,7 +31,8 @@ func InitDB(dbPath string) {
 		example TEXT,
 		next_review DATETIME DEFAULT CURRENT_TIMESTAMP,
 		interval INTEGER DEFAULT 1,
-		repetitions INTEGER DEFAULT 0
+		repetitions INTEGER DEFAULT 0,
+		ef REAL DEFAULT 2.5
 	);`
 
 	if _, err = DB.Exec(createTable); err != nil {
