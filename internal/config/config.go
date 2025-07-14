@@ -14,10 +14,7 @@ type AppConfig struct {
 }
 
 func InitEnv() AppConfig {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Cant find file .env.")
-	}
+	_ = godotenv.Load()
 
 	port := os.Getenv("PORT")
 	if port == "" {
