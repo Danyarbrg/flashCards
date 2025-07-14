@@ -26,6 +26,19 @@ func SetupRouter() *gin.Engine {
 
 // getFlashcards outputs all cards from DB.
 func getFlashcards(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+    limitStr := c.DefaultQuery("limit", "20")
+
+	page, err := strconv.Atoi(pageStr)
+    if err != nil || page < 1 {
+        page = 1
+    }
+
+    limit, err := strconv.Atoi(limitStr)
+    if err != nil || limit < 1 {
+        limit = 20
+    }
+
 	cards, err := models.GetAll()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "DB read error."})

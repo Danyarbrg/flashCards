@@ -16,7 +16,7 @@ type Flashcard struct {
 	NextReview  time.Time   `json:"next_review"`
     Interval    int     	`json:"interval"`
     Repetitions int     	`json:"repetitions"`
-	EF 			float64		`json:"ef"`
+    EF			float64		`json:"ef"`
 }
 
 // Flashcard save card into DB.
@@ -24,16 +24,16 @@ func (f *Flashcard) Save() error {
     if f.Interval == 0 {
         f.Interval = 1
     }
-	if f.EF == 0 {
-		f.EF = 2.5
-	}
+    if f.EF == 0 {
+        f.EF = 2.5
+    }
 
     now := time.Now().Format("2006-01-02 15:04:05")
 
     query := `
     INSERT INTO flashcards (word, meaning, example, next_review, interval, repetitions, ef) 
     VALUES (?, ?, ?, ?, ?, ?, ?)`
-    
+
     result, err := db.DB.Exec(query, f.Word, f.Meaning, f.Example, now, f.Interval, f.Repetitions, f.EF)
     if err != nil {
         log.Printf("Save error: %v", err)
@@ -67,6 +67,38 @@ func GetAll() ([]Flashcard, error) {
         cards = append(cards, f)
     }
     return cards, nil
+}
+
+// GetPaginated returns flashcards with limit and offset.
+func GetPaginated(limit, offset int) ([]Flashcard, error) {
+    query := `SELECT id, word, meaning, example, next_review, interval, repetitions, ef 
+				FROM flashcards 
+				ORDER BY id 
+				LIMIT ? OFFSET ?`
+
+    rows, err := db.DB.Query(query, limit, offset)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var cards []Flashcard
+    for rows.Next() {
+        var f Flashcard
+        if err := rows.Scan(&f.ID, &f.Word, &f.Meaning, &f.Example, &f.NextReview, &f.Interval, &f.Repetitions, &f.EF); err != nil {
+            log.Println("Error in scan:", err)
+        }
+        cards = append(cards, f)
+    }
+    return cards, nil
+}
+
+// GetTotalCount returns the total number of flashcards in the DB.
+func GetTotalCount() (int, error) {
+    var count int
+    query := `SELECT COUNT(*) FROM flashcards`
+    err := db.DB.QueryRow(query).Scan(&count)
+    return count, err
 }
 
 // Delete card from DB.
@@ -152,10 +184,9 @@ func UpdateAfterReview(id int, quality int) error {
     nextReview := time.Now().AddDate(0, 0, card.Interval)
 
     query := `UPDATE flashcards SET repetitions=?, interval=?, ef=?, next_review=? WHERE id=?`
-    card.EF = ef
-	log.Printf("Updated EF for card ID %d: %.3f", card.ID, card.EF)
-	_, err = db.DB.Exec(query, card.Repetitions, card.Interval, ef, nextReview.Format("2006-01-02 15:04:05"), id)
-	return err
+    _, err = db.DB.Exec(query, card.Repetitions, card.Interval, ef, nextReview.Format("2006-01-02 15:04:05"), id)
+    if err != nil {
+        log.Printf("UpdateAfterReview DB.Exec error: %v", err)
+    }
+    return err
 }
-
-
